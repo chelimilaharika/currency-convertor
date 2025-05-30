@@ -1,0 +1,227 @@
+class Person:
+    def __init__(self, person_id: int, name: str, email: str):
+        self.person_id = person_id
+        self.name = name
+        self.email = email
+        self.messages = []  # List of (from, message text)
+
+    def receive_message(self, sender_name: str, message: str):
+        self.messages.append({"from": sender_name, "message": message})
+
+    def read_messages(self):
+        print(f"Messages for {self.name}:")
+        if not self.messages:
+            print("  No messages.")
+            return
+        for i, msg in enumerate(self.messages, 1):
+            print(f"  {i}. From {msg['from']}: {msg['message']}")
+
+
+class Student(Person):
+    def __init__(self, student_id: int, name: str, email: str):
+        super().__init__(student_id, name, email)
+        self.attendance = {}  # date string -> present/absent (bool)
+        self.grades = {}  # subject -> grade
+        self.parents: List[Parent] = []
+
+    def mark_attendance(self, date: str, present: bool):
+        self.attendance[date] = present
+
+    def add_grade(self, subject: str, grade: float):
+        self.grades[subject] = grade
+
+    def add_parent(self, parent: 'Parent'):
+        self.parents.append(parent)
+
+
+class Teacher(Person):
+    def __init__(self, teacher_id: int, name: str, email: str):
+        super().__init__(teacher_id, name, email)
+
+
+class Parent(Person):
+    def __init__(self, parent_id: int, name: str, email: str):
+        super().__init__(parent_id, name, email)
+
+
+class StudentManagementSystem:
+    def __init__(self):
+        self.students: Dict[int, Student] = {}
+        self.teachers: Dict[int, Teacher] = {}
+        self.parents: Dict[int, Parent] = {}
+        self.next_person_id = 1
+
+    # Enrollment
+    def enroll_student(self, name: str, email: str) -> int:
+        student_id = self.next_person_id
+        self.next_person_id += 1
+        student = Student(student_id, name, email)
+        self.students[student_id] = student
+        print(f"Enrolled student {name} with ID {student_id}")
+        return student_id
+
+    def add_teacher(self, name: str, email: str) -> int:
+        teacher_id = self.next_person_id
+        self.next_person_id += 1
+        teacher = Teacher(teacher_id, name, email)
+        self.teachers[teacher_id] = teacher
+        print(f"Added teacher {name} with ID {teacher_id}")
+        return teacher_id
+
+    def add_parent(self, name: str, email: str) -> int:
+        parent_id = self.next_person_id
+        self.next_person_id += 1
+        parent = Parent(parent_id, name, email)
+        self.parents[parent_id] = parent
+        print(f"Added parent {name} with ID {parent_id}")
+        return parent_id
+
+    def link_parent_student(self, student_id: int, parent_id: int):
+        student = self.students.get(student_id)
+        parent = self.parents.get(parent_id)
+        if student and parent:
+            student.add_parent(parent)
+            print(f"Linked parent {parent.name} to student {student.name}")
+        else:
+            print("Invalid student or parent ID for linking.")
+
+    # Attendance
+    def mark_attendance(self, student_id: int, date: str, present: bool):
+        student = self.students.get(student_id)
+        if not student:
+            print(f"Student ID {student_id} not found.")
+            return
+        student.mark_attendance(date, present)
+        print(f"Marked attendance for {student.name} on {date}: {'Present' if present else 'Absent'}")
+
+    # Grade management
+    def record_grade(self, student_id: int, subject: str, grade: float):
+        student = self.students.get(student_id)
+        if not student:
+            print(f"Student ID {student_id} not found.")
+            return
+        student.add_grade(subject, grade)
+        print(f"Recorded grade for {student.name} in {subject}: {grade}")
+
+    # Communication
+    def send_message(self, sender_id: int, receiver_type: str, receiver_id: int, message: str):
+        # receiver_type can be 'student', 'teacher', 'parent'
+        sender_name = self._get_person_name(sender_id)
+        if not sender_name:
+            print("Invalid sender ID.")
+            return
+
+        receiver = None
+        if receiver_type == 'student':
+            receiver = self.students.get(receiver_id)
+        elif receiver_type == 'teacher':
+            receiver = self.teachers.get(receiver_id)
+        elif receiver_type == 'parent':
+            receiver = self.parents.get(receiver_id)
+        else:
+            print("Invalid receiver type.")
+            return
+
+        if not receiver:
+            print(f"{receiver_type.capitalize()} ID {receiver_id} not found.")
+            return
+
+        receiver.receive_message(sender_name, message)
+        print(f"Message sent from {sender_name} to {receiver.name}.")
+
+    def _get_person_name(self, person_id:int) -> Optional[str]:
+        person = self.students.get(person_id) or self.teachers.get(person_id) or self.parents.get(person_id)
+        if person:
+            return person.name
+        return None
+
+    # Reports
+    def get_student_report(self, student_id: int):
+        student = self.students.get(student_id)
+        if not student:
+            print(f"Student ID {student_id} not found.")
+            return
+        print(f"\nReport for {student.name}:")
+        print("Attendance:")
+        if student.attendance:
+            for date, present in student.attendance.items():
+                print(f"  {date}: {'Present' if present else 'Absent'}")
+        else:
+            print("  No attendance records.")
+        print("Grades:")
+        if student.grades:
+            for subject, grade in student.grades.items():
+                print(f"  {subject}: {grade}")
+        else:
+            print("  No grades recorded.")
+        print("Parents linked:")
+        if student.parents:
+            for parent in student.parents:
+                print(f"  {parent.name} ({parent.email})")
+        else:
+            print("  No parents linked.")
+        print("Messages:")
+        student.read_messages()
+
+    def administration_overview(self):
+        print("\n--- Administration Overview ---")
+        print(f"Total Students: {len(self.students)}")
+        print(f"Total Teachers: {len(self.teachers)}")
+        print(f"Total Parents: {len(self.parents)}")
+
+        print("\nStudents List:")
+        for student in self.students.values():
+            print(f"  ID {student.person_id}: {student.name} ({student.email})")
+
+        print("\nTeachers List:")
+        for teacher in self.teachers.values():
+            print(f"  ID {teacher.person_id}: {teacher.name} ({teacher.email})")
+
+        print("\nParents List:")
+        for parent in self.parents.values():
+            print(f"  ID {parent.person_id}: {parent.name} ({parent.email})")
+
+
+def demo():
+    sms = StudentManagementSystem()
+
+    # Add teachers
+    tid1 = sms.add_teacher("Mrs. Smith", "smith@school.edu")
+
+    # Enroll students
+    sid1 = sms.enroll_student("Alice Johnson", "alice@example.com")
+    sid2 = sms.enroll_student("Bob Smith", "bob@example.com")
+
+    # Add parents
+    pid1 = sms.add_parent("Mary Johnson", "mary.parent@example.com")
+    pid2 = sms.add_parent("John Smith", "john.parent@example.com")
+
+    # Link parents to students
+    sms.link_parent_student(sid1, pid1)
+    sms.link_parent_student(sid2, pid2)
+
+    # Mark attendance
+    sms.mark_attendance(sid1, "2024-06-01", True)
+    sms.mark_attendance(sid2, "2024-06-01", False)
+
+    # Record grades
+    sms.record_grade(sid1, "Math", 92.5)
+    sms.record_grade(sid2, "Math", 76)
+
+    # Communication examples
+    sms.send_message(tid1, 'student', sid1, "Please remember to submit your assignment by Friday.")
+    sms.send_message(sid1, 'parent', pid1, "I have a math test tomorrow.")
+    sms.send_message(pid1, 'teacher', tid1, "Thank you for the update about Alice.")
+
+    # Get student report
+    sms.get_student_report(sid1)
+    sms.get_student_report(sid2)
+
+    # Administration overview
+    sms.administration_overview()
+
+
+if __name__ == "__main__":
+
+
+
